@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+google-generativeai
+google-cloud-speech
+python-dotenv
+sounddevice
