@@ -9,13 +9,17 @@ from google.cloud import speech
 from google.cloud import vision
 import sounddevice as sd
 import json
-import re  
-from fastapi.concurrency import run_in_threadpool
+import re  # Thư viện để xử lý văn bản (Regular Expressions)
 
-GOOGLE_API_KEY = json.load(open("key/chatbot_key.json"))
-GOOGLE_SPEECH_KEY_FILE = "key/speech_key.json"
-VISION_KEY = "key/ocr_key.json"
-genai.configure(api_key=GOOGLE_API_KEY)
+# --- 1. Tải API Key và Cấu hình Model AI ---
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_SPEECH_KEY_FILE = "key.json"
+if not GOOGLE_API_KEY:
+    print("Lỗi: Không tìm thấy GOOGLE_API_KEY trong file .env")
+    # Cân nhắc raise Exception ở đây
+else:
+    genai.configure(api_key=GOOGLE_API_KEY)
 async def transcribe_audio(audio_content: bytes) -> str:
     try:
         client = speech.SpeechAsyncClient.from_service_account_file(
@@ -57,55 +61,7 @@ model = genai.GenerativeModel('gemini-2.5-flash-lite',
                              generation_config=generation_config,
                              safety_settings=safety_settings)
 
-def ocr_cv_file_sync(content: bytes, mime_type: str) -> str:
-    try:
-        client = vision.ImageAnnotatorClient.from_service_account_file(VISION_KEY)
-        
-        print(f"Đang xử lý file ({mime_type}) bằng Google Vision (Sync)...")
-        
-        if mime_type == "application/pdf" or mime_type == "image/tiff" or mime_type == "image/gif":
-            print("Đang dùng logic PDF/TIFF...")
-            input_config = vision.InputConfig(content=content, mime_type=mime_type)
-            features = [vision.Feature(type_=vision.Feature.Type.DOCUMENT_TEXT_DETECTION)]
-            file_request = vision.AnnotateFileRequest(input_config=input_config, features=features)
-            batch_request = vision.BatchAnnotateFilesRequest(requests=[file_request])
-            
-            response = client.batch_annotate_files(request=batch_request)
-            file_response = response.responses[0]
-            page_response = file_response.responses[0]
-            
-            if page_response.error.message:
-                raise Exception(f"Lỗi Vision API (PDF): {page_response.error.message}")
-            
-            if page_response.full_text_annotation:
-                return page_response.full_text_annotation.text
-            else:
-                return "Không tìm thấy văn bản trong file PDF."
-
-        elif mime_type == "image/png" or mime_type == "image/jpeg":
-            print("Đang dùng logic Ảnh (PNG/JPG)...")
-            image = vision.Image(content=content)
-            
-            response = client.document_text_detection(image=image)
-            
-            if response.error.message:
-                raise Exception(f"Lỗi Vision API (Ảnh): {response.error.message}")
-            
-            if response.full_text_annotation:
-                return response.full_text_annotation.text
-            else:
-                return "Không tìm thấy văn bản trong file ảnh."
-        
-        else:
-            return f"(Lỗi khi xử lý OCR: Không hỗ trợ MIME type '{mime_type}'. Chỉ hỗ trợ PDF, PNG, JPG, GIF, TIFF.)"
-
-    except FileNotFoundError:
-        print(f"LỖI NGHIÊM TRỌNG: Không tìm thấy file key '{VISION_KEY}'")
-        return f"(Lỗi server: Không tìm thấy file key OCR.)"
-    except Exception as e:
-        print(f"Lỗi OCR: {e}")
-        return f"(Lỗi khi xử lý OCR: {e})"
-
+# --- 2. Khởi tạo app FastAPI ---
 app = FastAPI()
 
 class UserInput(BaseModel):
@@ -192,18 +148,7 @@ async def handle_voice_request(file: UploadFile = File(...)):
     
     # 2. Gửi text cho Gemini
     return await get_gemini_evaluation(transcribed_text)
-@app.post("/api/upload-cv")
-async def handle_image_request(file: UploadFile = File(...)):
-    """_summary_
-    Lọc từ khóa trong pdf, png, jpg CV
-    """
-    content = await file.read()
-    mime_type = file.content_type
-    cv_text = await run_in_threadpool(ocr_cv_file_sync, content, mime_type)
-    
-    if "(Lỗi" in cv_text:
-        return JSONResponse(status_code=500, content={"error": cv_text})
-    return JSONResponse(content={"cv_text": cv_text})
+# --- 5. Phục vụ Frontend Tĩnh ---
 app.mount("/", 
           StaticFiles(directory="../frontend/public", html=True), 
           name="public")
