@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default;
+}
+
+/* Map Tailwind font-sans -> biến Next/font của bạn */
+@theme {
+  --font-sans: var(--font-body); /* Roboto cho body */
+}
+
+/* Tạo class 'font-heading' dùng cho H1/H2 */
+@utility font-heading {
+  font-family: var(--font-heading), var(--font-sans), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
