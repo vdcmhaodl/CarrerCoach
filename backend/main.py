@@ -211,7 +211,7 @@ async def handle_image_request(file: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"error": cv_text})
     return JSONResponse(content={"cv_text": cv_text})
 @app.post ("/api/generate-questions")
-async def generate_questions(data: job_title: str):
+async def generate_questions(job_title: str):
     prompt_template = f"""
     Bạn là một chuyên gia tuyển dụng nhân sự cấp cao.
     Dựa trên văn bản CV và Tên công việc mục tiêu dưới đây, hãy tạo ra 5 câu hỏi phỏng vấn phù hợp.
