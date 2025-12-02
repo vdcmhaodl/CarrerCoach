@@ -1,10 +1,8 @@
-import os
 import google.generativeai as genai
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
 from google.cloud import speech
 from google.cloud import vision
 import json
@@ -12,14 +10,39 @@ import re
 from fastapi.concurrency import run_in_threadpool 
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# Read API keys directly from key folder
 GOOGLE_SPEECH_KEY_FILE = "key/speech_key.json"
 VISION_KEY = "key/ocr_key.json"
-if not GOOGLE_API_KEY:
-    print("Lỗi: Không tìm thấy GOOGLE_API_KEY trong file .env")
-else:
-    genai.configure(api_key=GOOGLE_API_KEY)
+CHATBOT_KEY_FILE = "key/chatbot_key.json"
+
+# Load Gemini API key from JSON file
+def load_gemini_api_key(key_file: str) -> str:
+    """Load Gemini API key from JSON file."""
+    try:
+        with open(key_file, 'r') as f:
+            key_data = json.load(f)
+            # Assuming the key is stored under 'api_key' or similar field
+            # Adjust based on your actual JSON structure
+            if isinstance(key_data, dict):
+                # Try common key names
+                for key_name in ['GOOGLE_API_KEY', 'api_key', 'key', 'apiKey', 'API_KEY']:
+                    if key_name in key_data:
+                        return key_data[key_name]
+                # If dict doesn't have expected key, return first value
+                return list(key_data.values())[0] if key_data else ""
+            elif isinstance(key_data, str):
+                return key_data
+            else:
+                raise ValueError(f"Unexpected key format in {key_file}")
+    except FileNotFoundError:
+        print(f"LỖI NGHIÊM TRỌNG: Không tìm thấy file key '{key_file}'")
+        raise
+    except Exception as e:
+        print(f"Lỗi khi đọc file key: {e}")
+        raise
+
+GOOGLE_API_KEY = load_gemini_api_key(CHATBOT_KEY_FILE)
+genai.configure(api_key=GOOGLE_API_KEY)
 async def transcribe_audio(audio_content: bytes) -> str:
     """
     Sử dụng Google Cloud Speech-to-Text để chuyển file âm thanh (dạng bytes)
@@ -145,7 +168,7 @@ async def get_gemini_evaluation(user_answer: str):
     **Tác vụ 1: Nếu input có vẻ là MỘT CÂU TRẢ LỜI PHỎNG VẤN**
     (ví dụ: "Điểm yếu của tôi là...", "Tôi nghĩ mình phù hợp vì...", "Tôi xử lý mâu thuẫn bằng cách...")
     
-    Hãy đánh giá câu trả lời đó, ngôn ngữ là tiếng anh. Format phản hồi của bạn dưới dạng JSON như sau (đảm bảo JSON hợp lệ, không có text nào bên ngoài cặp ngoặc {{}}):
+    Hãy đánh giá câu trả lời đó. Format phản hồi của bạn dưới dạng JSON như sau (đảm bảo JSON hợp lệ, không có text nào bên ngoài cặp ngoặc {{}}):
     {{
       "type": "evaluation",
       "feedback": "Nhận xét chi tiết về ưu/nhược điểm của câu trả lời.",
@@ -219,114 +242,6 @@ async def handle_image_request(file: UploadFile = File(...)):
     if "(Lỗi" in cv_text:
         return JSONResponse(status_code=500, content={"error": cv_text})
     return JSONResponse(content={"cv_text": cv_text})
-
-class CVAnalysisRequest(BaseModel):
-    cv_text: str
-    role: str
-    org: str = ""
-    tasks: list[str] = []
-    skills: list[str] = []
-
-@app.post("/api/analyze-cv")
-async def analyze_cv_with_profile(data: CVAnalysisRequest):
-    """
-    Analyze CV with user profile context (role, tasks, skills)
-    and recommend matching companies from job_data.json
-    """
-    try:
-        # Load job data
-        job_data_path = os.path.join(os.path.dirname(__file__), "job_data.json")
-        with open(job_data_path, "r", encoding="utf-8") as f:
-            job_data = json.load(f)
-        
-        # Create AI prompt for CV analysis
-        prompt = f"""
-        You are an expert career advisor. Analyze the following CV and provide detailed feedback.
-        
-        **User Profile:**
-        - Target Role: {data.role}
-        - Organization: {data.org if data.org else "Not specified"}
-        - Selected Tasks: {', '.join(data.tasks) if data.tasks else "None"}
-        - Selected Skills: {', '.join(data.skills) if data.skills else "None"}
-        
-        **CV Content:**
-        {data.cv_text}
-        
-        **Instructions:**
-        1. Analyze the CV strengths (what they are good at based on experience, skills, achievements)
-        2. Identify weaknesses or gaps (missing skills for target role, unclear experiences, formatting issues)
-        3. Provide 3-5 specific actionable improvements they can make to their CV
-        4. Extract the key technical skills and domain expertise from the CV
-        
-        Return your response in JSON format:
-        {{
-          "strengths": ["strength 1", "strength 2", ...],
-          "weaknesses": ["weakness 1", "weakness 2", ...],
-          "improvements": ["improvement 1", "improvement 2", ...],
-          "extracted_skills": ["skill1", "skill2", ...],
-          "summary": "A brief 2-3 sentence summary of the CV and its alignment with the target role"
-        }}
-        """
-        
-        # Get AI analysis
-        response = await model.generate_content_async(prompt)
-        raw_text = response.text.strip()
-        
-        # Extract JSON from AI response
-        match = re.search(r'```json\s*({.*?})\s*```|({.*?})', raw_text, re.DOTALL)
-        if match:
-            json_str = match.group(1) or match.group(2)
-            analysis = json.loads(json_str)
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"error": "Failed to parse AI analysis", "raw": raw_text}
-            )
-        
-        # Recommend matching jobs from job_data.json
-        # Use simple keyword matching (more reliable than AI matching)
-        role_keywords = data.role.lower().split()
-        skill_keywords = [s.lower() for s in (data.skills + analysis.get("extracted_skills", []))]
-        
-        scored_jobs = []
-        for job in job_data[:100]:  # Search first 100 jobs
-            score = 0
-            job_name_lower = job['job_name'].lower()
-            
-            # Check role match
-            for keyword in role_keywords:
-                if keyword in job_name_lower:
-                    score += 3
-            
-            # Check skill match in requirements
-            job_req = str(job.get('job_requirement', '')).lower()
-            for skill in skill_keywords:
-                if skill in job_req:
-                    score += 1
-            
-            if score > 0:
-                scored_jobs.append((score, job))
-        
-        # Sort by score and take top 5
-        scored_jobs.sort(reverse=True, key=lambda x: x[0])
-        recommended_jobs = [job for score, job in scored_jobs[:5]]
-        
-        return JSONResponse(content={
-            "analysis": analysis,
-            "recommended_jobs": recommended_jobs[:5]
-        })
-        
-    except FileNotFoundError:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Job data file not found"}
-        )
-    except Exception as e:
-        print(f"Error in CV analysis: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to analyze CV: {str(e)}"}
-        )
 @app.post ("/api/generate-questions")
 async def generate_questions(job_title: str):
     prompt_template = f"""
@@ -335,8 +250,8 @@ async def generate_questions(job_title: str):
     Dựa trên TÊN CÔNG VIỆC MỤC TIÊU sau:
     {job_title}
 
-    Hãy tạo ra tối thiểu 15 câu hỏi phỏng vấn bằng tiếng Anh
-    và CHIA THÀNH 3 NHÓM, mỗi NHÓM 5 câu hỏi:
+    Hãy tạo ra tối thiểu 30 câu hỏi phỏng vấn bằng tiếng Anh
+    và CHIA THÀNH 3 NHÓM, mỗi NHÓM 10 câu hỏi:
 
     - [Background] ...  (hỏi về nền tảng, kinh nghiệm, học vấn)
     - [Situation] ...   (câu hỏi tình huống, hành vi)

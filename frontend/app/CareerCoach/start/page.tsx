@@ -1,34 +1,41 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useLanguageWithMount } from "../../hooks/useLanguageWithMount";
+import { lazy, Suspense } from "react";
+
+export const dynamic = 'force-dynamic';
+
+const LanguageSwitcherComponent = lazy(() => import("../../components/LanguageSwitcher").then(mod => ({ default: mod.LanguageSwitcher })));
 
 const MOCK_TASKS = [
-  "Maintain and troubleshoot network infrastructure.",
-  "Develop and implement software solutions.",
-  "Provide technical support and guidance to end-users.",
-  "Manage and secure IT assets and data.",
-  "Collaborate with stakeholders to understand technology needs.",
+  "task.network",
+  "task.develop",
+  "task.support",
+  "task.manage",
+  "task.collaborate",
 ];
 
 const MOCK_SKILLS = [
-  "Technical Support",
-  "Network Administration",
-  "System Maintenance",
-  "Problem Solving",
-  "User Training",
-  "Data Management",
-  "Cybersecurity Awareness",
-  "Project Coordination",
+  "skill.technicalSupport",
+  "skill.networkAdmin",
+  "skill.systemMaintenance",
+  "skill.problemSolving",
+  "skill.userTraining",
+  "skill.dataManagement",
+  "skill.cybersecurity",
+  "skill.projectCoordination",
 ];
 
 export default function Start() {
+  const { t, mounted } = useLanguageWithMount();
   const [step, setStep] = useState("intro");
+  const [modal, setModel] = useState("model");
   const [role, setRole] = useState("");
   const [org, setOrg] = useState("");
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [cvAdvice, setCvAdvice] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (step === "loading") {
@@ -57,8 +64,18 @@ export default function Start() {
     }
   };
 
+  if (!mounted) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 max-w-4xl mx-auto transition-all duration-300">
+      <div className="fixed top-4 right-4 z-50">
+        <Suspense fallback={null}>
+          <LanguageSwitcherComponent />
+        </Suspense>
+      </div>
+
       {(step === "org" ||
         step === "loading" ||
         step === "tasks" ||
@@ -73,15 +90,15 @@ export default function Start() {
 
       {step === "intro" && (
         <div className="text-center space-y-6 fade-in">
-          <div className="text-6xl animate-bounce">👋</div>
+          <div className="text-6xl animate-bounce">{t("careerStart.greeting")}</div>
           <h1 className="text-4xl md:text-6xl font-bold text-gray-800">
-            To start, share a current or previous role:
+            {t("careerStart.intro")}
           </h1>
           <button
             className="btn btn-primary mt-8 btn-lg rounded-full px-12"
             onClick={() => setStep("role")}
           >
-            Let`s go
+            {t("careerStart.letsGo")}
           </button>
         </div>
       )}
@@ -89,12 +106,12 @@ export default function Start() {
       {step === "role" && (
         <div className="w-full max-w-2xl space-y-6">
           <label className="text-3xl md:text-5xl font-bold text-gray-400 block mb-4">
-            To start, share a current or previous role:
+            {t("careerStart.intro")}
           </label>
           <input
             autoFocus
             type="text"
-            placeholder="e.g. Software Engineer"
+            placeholder={t("careerStart.rolePlaceholder")}
             className="w-full text-4xl md:text-4xl font-bold bg-transparent border-none outline-none placeholder-gray-200 text-gray-800 border-b-2 focus:border-blue-500 transition-colors"
             value={role}
             onChange={(e) => setRole(e.target.value)}
@@ -106,7 +123,7 @@ export default function Start() {
               className="btn btn-primary px-10 rounded-full"
               onClick={() => setStep("org")}
             >
-              Next
+              {t("careerStart.next")}
             </button>
           </div>
         </div>
@@ -118,7 +135,7 @@ export default function Start() {
           <input
             autoFocus
             type="text"
-            placeholder="Organization/Company (optinal)"
+            placeholder={t("careerStart.orgPlaceholder")}
             className="w-full text-3xl md:text-4xl font-bold bg-transparent border-none outline-none placeholder-gray-200 text-gray-500"
             value={org}
             onChange={(e) => setOrg(e.target.value)}
@@ -126,13 +143,13 @@ export default function Start() {
           />
           <div className="flex gap-4 mt-8">
             <button className="btn btn-ghost" onClick={() => setStep("role")}>
-              Back
+              {t("careerStart.back")}
             </button>
             <button
               className="btn btn-primary px-10 rounded-full"
               onClick={() => setStep("loading")}
             >
-              Next
+              {t("careerStart.next")}
             </button>
           </div>
         </div>
@@ -141,42 +158,56 @@ export default function Start() {
       {step === "loading" && (
         <div className="text-center">
           <span className="loading loading-spinner loading-lg text-primary"></span>
-          <p className="text-2xl font-semibold text-transparent bg-clip-text bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 mt-4">
-            ✨ Generating insights...
+          <p className="text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mt-4">
+            {t("careerStart.generating")}
           </p>
         </div>
       )}
 
       {step === "tasks" && (
         <div className="w-full pt-32 pb-10">
-          <h2 className="text-xl text-gray-500 mb-6">
-            Select all the tasks you performed as a(n) {role} (optional).
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl text-gray-500">
+              {t("careerStart.selectTasks")} {role} {t("careerStart.selectTasksOptional")}
+            </h2>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => {
+                if (selectedTasks.length === MOCK_TASKS.length) {
+                  setSelectedTasks([]);
+                } else {
+                  setSelectedTasks([...MOCK_TASKS]);
+                }
+              }}
+            >
+              {selectedTasks.length === MOCK_TASKS.length ? "Deselect All" : t("careerStart.selectAll")}
+            </button>
+          </div>
           <div className="flex flex-col gap-3">
-            {MOCK_TASKS.map((task, idx) => (
+            {MOCK_TASKS.map((taskKey, idx) => (
               <div
                 key={idx}
-                onClick={() => handleTaskToggle(task)}
+                onClick={() => handleTaskToggle(taskKey)}
                 className={`p-6 rounded-xl border-2 cursor-pointer transition-all text-lg
                   ${
-                    selectedTasks.includes(task)
+                    selectedTasks.includes(taskKey)
                       ? "border-blue-500 bg-blue-50 text-blue-900 shadow-md"
                       : "border-gray-100 bg-white hover:border-gray-200 text-gray-600"
                   }`}
               >
-                {task}
+                {t(taskKey)}
               </div>
             ))}
           </div>
           <div className="flex justify-between mt-8">
             <button className="btn btn-ghost" onClick={() => setStep("org")}>
-              Back
+              {t("careerStart.back")}
             </button>
             <button
               className="btn btn-primary px-10 rounded-full"
               onClick={() => setStep("skills")}
             >
-              Next
+              {t("careerStart.next")}
             </button>
           </div>
         </div>
@@ -184,40 +215,57 @@ export default function Start() {
 
       {step === "skills" && (
         <div className="w-full pt-32">
-          <h2 className="text-xl text-gray-500 mb-6">
-            Select at least 3 skills that apply to you.
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl text-gray-500">
+              {t("careerStart.selectSkills")}
+            </h2>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() => {
+                if (selectedSkills.length === MOCK_SKILLS.length) {
+                  setSelectedSkills([]);
+                } else {
+                  setSelectedSkills([...MOCK_SKILLS]);
+                }
+              }}
+            >
+              {selectedSkills.length === MOCK_SKILLS.length ? "Deselect All" : t("careerStart.selectAll")}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-3">
-            {MOCK_SKILLS.map((skill, idx) => (
+            {MOCK_SKILLS.map((skillKey, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSkillToggle(skill)}
+                onClick={() => handleSkillToggle(skillKey)}
                 className={`px-6 py-3 rounded-full text-lg font-medium transition-all
                    ${
-                     selectedSkills.includes(skill)
+                     selectedSkills.includes(skillKey)
                        ? "bg-green-100 text-green-800 ring-2 ring-green-400"
                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                    }`}
               >
-                {skill}
+                {t(skillKey)}
               </button>
             ))}
+            <button className="px-6 py-3 rounded-full border-2 border-dashed border-gray-300 text-gray-400 hover:border-gray-400">
+              {t("careerStart.moreSkills")}
+            </button>
           </div>
           {selectedSkills.length < 3 && (
             <div className="text-red-500 text-lg font-semibold mt-6 text-center">
-              Please select at least 3 skills to continue.
+              {t("careerStart.skillsWarning")}
             </div>
           )}
           <div className="flex justify-between mt-12">
             <button className="btn btn-ghost" onClick={() => setStep("tasks")}>
-              Back
+              {t("careerStart.back")}
             </button>
             <button
               className="btn btn-primary px-10 rounded-full"
               onClick={() => setStep("result")}
               disabled={selectedSkills.length < 3}
             >
-              Next
+              {t("careerStart.next")}
             </button>
           </div>
         </div>
@@ -227,14 +275,13 @@ export default function Start() {
         <div className="flex flex-col w-full h-screen pt-10">
           <div className="bg-gray-50 p-8 rounded-3xl shadow-sm border border-gray-100">
             <div className="badge badge-accent badge-lg mb-4">
-              CAREER IDENTITY STATEMENT
+              {t("careerStart.identityBadge")}
             </div>
             <p className="text-2xl md:text-3xl leading-relaxed text-gray-700">
-              I am an <span className="font-bold text-indigo-600">{role}</span>{" "}
-              professional dedicated to maintaining robust technological
-              infrastructures. My core strengths lie in{" "}
+              {t("careerStart.identityText")} <span className="font-bold text-indigo-600">{role}</span>{" "}
+              {t("careerStart.identityText2")}{" "}
               <span className="font-bold text-emerald-600">
-                {selectedSkills.slice(0, 3).join(", ")}
+                {selectedSkills.slice(0, 3).map(sk => t(sk)).join(", ")}
               </span>
               ...
             </p>
@@ -244,7 +291,7 @@ export default function Start() {
               className="btn btn-info btn-wide rounded-full text-white text-lg"
               onClick={() => setStep("analyzing")}
             >
-              Generate paths
+              {t("careerStart.explorePaths")}
             </button>
           </div>
         </div>
@@ -255,10 +302,10 @@ export default function Start() {
         <div className="text-center animate-in fade-in duration-700">
           <span className="loading loading-dots loading-lg text-info"></span>
           <p className="text-3xl font-bold mt-6 animate-pulse text-gray-800">
-            Consulting AI Expert...
+            {t("careerStart.consulting")}
           </p>
           <p className="text-gray-500 mt-2">
-            Matching your profile with top industry standards
+            {t("careerStart.matching")}
           </p>
         </div>
       )}
@@ -266,11 +313,10 @@ export default function Start() {
       {step === "advice" && (
         <div className="w-full pt-32 max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">
-            Upload Your CV for Analysis
+            {t("careerStart.uploadCV")}
           </h2>
           <p className="text-gray-600 mb-6">
-            Upload your CV and we`ll analyze it to provide personalized career
-            advice and interview preparation.
+            {t("careerStart.uploadDesc")}
           </p>
 
           <div className="bg-gray-50 p-8 rounded-3xl shadow-sm border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors">
@@ -281,76 +327,14 @@ export default function Start() {
                 id="cv-upload"
                 accept=".pdf,.doc,.docx,image/*"
                 className="hidden"
-                onChange={async (e) => {
+                onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    setAnalyzing(true);
-                    setCvAdvice("Extracting text from your CV...");
-
-                    try {
-                      // Step 1: Upload CV for OCR
-                      const formData = new FormData();
-                      formData.append("file", file);
-
-                      const uploadRes = await fetch(
-                        "http://localhost:8000/api/upload-cv",
-                        {
-                          method: "POST",
-                          body: formData,
-                        }
-                      );
-
-                      const uploadData = await uploadRes.json();
-
-                      if (uploadData.error) {
-                        setCvAdvice(`Error: ${uploadData.error}`);
-                        setAnalyzing(false);
-                        return;
-                      }
-
-                      setCvAdvice("Analyzing your CV with AI...");
-
-                      // Step 2: Analyze CV with profile context
-                      const analysisRes = await fetch(
-                        "http://localhost:8000/api/analyze-cv",
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            cv_text: uploadData.cv_text,
-                            role: role,
-                            org: org,
-                            tasks: selectedTasks,
-                            skills: selectedSkills,
-                          }),
-                        }
-                      );
-
-                      const analysisData = await analysisRes.json();
-
-                      if (analysisData.error) {
-                        setCvAdvice(`Analysis Error: ${analysisData.error}`);
-                        setAnalyzing(false);
-                        return;
-                      }
-
-                      // Store results in sessionStorage and navigate to result page
-                      sessionStorage.setItem(
-                        "cvAnalysis",
-                        JSON.stringify(analysisData.analysis)
-                      );
-                      sessionStorage.setItem(
-                        "recommendedJobs",
-                        JSON.stringify(analysisData.recommended_jobs || [])
-                      );
-
-                      window.location.href = "/CareerCoach/start/result";
-                    } catch (error) {
-                      console.error("CV Analysis Error:", error);
-                      setCvAdvice("Failed to analyze CV. Please try again.");
-                    } finally {
-                      setAnalyzing(false);
-                    }
+                    // TODO: Handle file upload and send to backend for analysis
+                    console.log("File selected:", file.name);
+                    setCvAdvice(
+                      "Analyzing your CV... (Backend integration coming soon)"
+                    );
                   }
                 }}
               />
@@ -358,26 +342,17 @@ export default function Start() {
                 htmlFor="cv-upload"
                 className="btn btn-primary btn-lg rounded-full px-12 cursor-pointer"
               >
-                Choose CV File
+                {t("careerStart.chooseFile")}
               </label>
               <p className="text-sm text-gray-500 mt-4">
-                Supported formats: PDF, DOC, DOCX, PNG, JPG
+                {t("careerStart.supportedFormats")}
               </p>
             </div>
           </div>
 
-          {/* Loading State */}
-          {analyzing && (
-            <div className="mt-8 text-center">
-              <span className="loading loading-spinner loading-lg text-primary"></span>
-              <p className="text-lg text-gray-600 mt-4">{cvAdvice}</p>
-            </div>
-          )}
-
-          {/* Simple Progress Message */}
-          {cvAdvice && !analyzing && (
+          {cvAdvice && (
             <div className="mt-8 bg-blue-50 p-6 rounded-2xl border border-blue-200">
-              <div className="badge badge-info badge-lg mb-3">Processing</div>
+              <div className="badge badge-info badge-lg mb-3">{t("careerStart.aiAnalysis")}</div>
               <p className="text-lg text-gray-700">{cvAdvice}</p>
             </div>
           )}
@@ -385,13 +360,21 @@ export default function Start() {
           <div className="flex justify-between mt-8">
             <button
               className="btn btn-ghost btn-wide rounded-full text-lg"
-              onClick={() => {
-                setStep("result");
-                setCvAdvice(null);
-              }}
+              onClick={() => setStep("result")}
             >
-              Back
+              {t("careerStart.back")}
             </button>
+            {cvAdvice && (
+              <button
+                className="btn btn-success btn-wide rounded-full text-lg text-white"
+                onClick={() => {
+                  // TODO: Navigate to next step or save results
+                  alert("CV analysis complete! Ready for interview prep.");
+                }}
+              >
+                {t("careerStart.continue")}
+              </button>
+            )}
           </div>
         </div>
       )}
