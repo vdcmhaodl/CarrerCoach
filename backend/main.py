@@ -176,61 +176,71 @@ async def get_gemini_evaluation(user_answer: str):
     Hàm này chứa logic gọi Gemini mà chúng ta đã viết.
     Nó nhận text (từ gõ chữ hoặc STT) và trả về JSON.
     """
-    prompt_template = f"""
-    Bạn là một AI Coach phỏng vấn tên là CareerCoach.
-    Hãy phân tích input của người dùng và thực hiện MỘT trong hai tác vụ sau:
+    prompt_template = f"""You are an expert interview coach named CareerCoach.
+Analyze the user's input and return ONLY valid JSON (no markdown, no extra text outside curly braces).
 
-    **Tác vụ 1: Nếu input có vẻ là MỘT CÂU TRẢ LỜI PHỎNG VẤN**
-    (ví dụ: "Điểm yếu của tôi là...", "Tôi nghĩ mình phù hợp vì...", "Tôi xử lý mâu thuẫn bằng cách...")
-    
-    Hãy đánh giá câu trả lời đó. Format phản hồi của bạn dưới dạng JSON như sau (đảm bảo JSON hợp lệ, không có text nào bên ngoài cặp ngoặc {{}}):
-    {{
-      "type": "evaluation",
-      "feedback": "Nhận xét chi tiết về ưu/nhược điểm của câu trả lời, gợi ý cải thiện.",
-      "suggested_answer": "Một câu trả lời mẫu lý tưởng cho câu hỏi mà bạn đoán người dùng đang trả lời."
-    }}
+If the input appears to be an interview answer:
+Return:
+{{
+  "type": "evaluation",
+  "feedback": "Detailed feedback on strengths and weaknesses of the answer, with suggestions for improvement. 2-3 sentences.",
+  "suggested_answer": "An ideal example answer for this type of question. 2-3 sentences."
+}}
 
-    **Tác vụ 2: Nếu input có vẻ là MỘT CÂU HỎI hoặc MỘT YÊU CẦU**
-    (ví dụ: "Cho tôi lời khuyên...", "Làm thế nào để...", "Câu hỏi phỏng vấn phổ biến là gì?", "Give concise interview tips...")
-    
-     
-    Hãy trả lời câu hỏi hoặc yêu cầu đó. Format phản hồi của bạn dưới dạng JSON như sau (đảm bảo JSON hợp lệ, không có text nào bên ngoài cặp ngoặc {{}}):
-    {{
-      "type": "general_answer",
-      "response": "Câu trả lời của bạn cho câu hỏi/yêu cầu của người dùng."
-    }}
-    **Tác vụ 3: Nếu User muốn học về một lĩnh vực cụ thể**
-    (ví dụ: "Hãy giúp tôi luyện tập phỏng vấn cho vị trí kỹ sư phần mềm", "Tôi muốn học cách trả lời câu hỏi về quản lý thời gian", "Hãy cho tôi ví dụ về câu hỏi phỏng vấn cho vị trí marketing...")
-    Hãy trả lời câu hỏi hoặc yêu cầu đó bằng cách cho 1 đoạn prompt mẫu để hướng dẫn lộ trình học trên các LLMs và link các khóa học trên mạng liên quan như coursera, KhanAcademy,... . Format phản hồi của bạn dưới dạng JSON như sau (đảm bảo JSON hợp lệ, không có text nào bên ngoài cặp ngoặc {{}}):
-    {{
-      "type": "general_answer",
-      "response": "Câu trả lời của bạn cho câu hỏi/yêu cầu của người dùng."
-    }}
-    ---
-    **Input của người dùng:**
-    "{user_answer}"
-    ---
-    
-    Hãy chọn Tác vụ 1 hoặc Tác vụ 2 hoặc Tác vụ 3 và chỉ trả về JSON.
-    """
+If the input is a question or request:
+Return:
+{{
+  "type": "general_answer",
+  "response": "Direct answer to the user's question or request."
+}}
+
+---
+User input: "{user_answer}"
+---
+
+Return ONLY the JSON object, nothing else."""
     
     try:
         response = await model.generate_content_async(prompt_template)
         raw_text = response.text.strip()
         
-        match = re.search(r'```json\s*({.*?})\s*```|({.*?})', raw_text, re.DOTALL)
+        # Remove markdown code blocks if present
+        raw_text = re.sub(r'```json\s*', '', raw_text)
+        raw_text = re.sub(r'```\s*', '', raw_text)
+        
+        # Try to extract JSON object
+        match = re.search(r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})', raw_text, re.DOTALL)
         if match:
-            json_str = match.group(1) or match.group(2)
+            json_str = match.group(1)
+            # Clean up common JSON issues
+            json_str = re.sub(r',\s*([\]\}])', r'\1', json_str)  # Remove trailing commas
+            
             ai_data = json.loads(json_str)
             return JSONResponse(content=ai_data)
         else:
+            # If no JSON found, create a default response
             return JSONResponse(
-                status_code=500,
-                content={"error": "Không thể tìm thấy nội dung JSON từ AI.", "raw": raw_text}
+                content={
+                    "type": "general_answer",
+                    "response": raw_text[:500] if raw_text else "Please provide a clearer input."
+                }
             )
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        return JSONResponse(
+            content={
+                "type": "general_answer",
+                "response": "I understood your message. Please try rephrasing your answer or question for better evaluation."
+            }
+        )
     except Exception as e:
-        print(f"Lỗi khi gọi AI: {e}")
-        return JSONResponse(status_code=500, content={"error": f"Lỗi máy chủ: {e}"})
+        print(f"Error calling AI: {e}")
+        return JSONResponse(
+            content={
+                "type": "general_answer",
+                "response": "I'm currently processing your request. Please try again."
+            }
+        )
 @app.post("/api/gemini")
 async def handle_gemini_request(data: UserInput):
     return await get_gemini_evaluation(data.prompt)
@@ -367,47 +377,61 @@ async def generate_questions(data: QuestionGenerationRequest):
     skills_text = ", ".join(data.skills) if data.skills else "general professional skills"
     role_text = data.role or data.field
     
-    prompt_template = f"""
-    You are a senior HR recruitment expert.
+    prompt_template = f"""You are a senior HR recruitment expert. Generate interview questions for the following profile:
 
-    Based on the following profile:
-    - TARGET ROLE: {role_text}
-    - FIELD: {data.field}
-    - KEY SKILLS: {skills_text}
+TARGET ROLE: {role_text}
+FIELD: {data.field}
+KEY SKILLS: {skills_text}
 
-    Generate AT LEAST 30 personalized interview questions in English
-    DIVIDED INTO 3 GROUPS, each with 10 questions:
+Return ONLY a valid JSON array of 15-20 strings (no markdown, no text outside brackets).
+Each question MUST start with exactly one tag: [Background], [Situation], or [Technical].
 
-    - [Background] ...  (questions about background, experience, education)
-    - [Situation] ...   (behavioral/situational questions)
-    - [Technical] ...   (technical/professional knowledge specific to the role and skills)
+Example format:
+[
+  "[Background] Tell me about your experience with data analysis.",
+  "[Situation] Describe how you handled a difficult deadline.",
+  "[Technical] Explain the key concepts of machine learning."
+]
 
-    REQUIREMENTS:
-
-    1. RETURN ONLY A JSON ARRAY of strings.
-    2. Each element in the array is one question, and MUST start with exactly one of these 3 tags:
-       "[Background]", "[Situation]", or "[Technical]".
-       Examples:
-       [
-         "[Background] Tell me about your experience with {skills_text.split(',')[0] if data.skills else 'your field'}.",
-         "[Situation] Describe a time you solved a difficult problem using {skills_text.split(',')[0] if data.skills else 'your skills'}.",
-         "[Technical] Explain {skills_text.split(',')[0] if data.skills else 'a key concept in your field'}."
-       ]
-
-    3. Make questions SPECIFIC to the role and skills provided.
-    4. Do not use markdown bullets, do not wrap in ```json, no extra explanations.
-    """
-    response = await model.generate_content_async(prompt_template)
-    raw_text = response.text.strip()
-    match = re.search(r'(\[.*\])', raw_text, re.DOTALL)
-    if match:
-        json_str = match.group(1)
-        questions = json.loads(json_str)
-        return JSONResponse(content={"questions": questions})
-    else:
+Make questions specific to the role and skills. Return ONLY the JSON array, nothing else."""
+    
+    try:
+        response = await model.generate_content_async(prompt_template)
+        raw_text = response.text.strip()
+        
+        # Remove markdown code blocks if present
+        raw_text = re.sub(r'```json\s*', '', raw_text)
+        raw_text = re.sub(r'```\s*', '', raw_text)
+        
+        # Find JSON array
+        match = re.search(r'(\[.*\])', raw_text, re.DOTALL)
+        if match:
+            json_str = match.group(1)
+            # Clean up common JSON issues
+            json_str = re.sub(r',\s*([\]\}])', r'\1', json_str)  # Remove trailing commas
+            json_str = json_str.replace("\n", " ").replace("\r", " ")  # Remove newlines but keep spacing
+            
+            questions = json.loads(json_str)
+            
+            # Ensure we have a valid list
+            if not isinstance(questions, list):
+                raise ValueError("Response is not a list")
+            
+            return JSONResponse(content={"questions": questions})
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Could not find JSON array from AI.", "raw": raw_text[:500]}
+            )
+    except json.JSONDecodeError as e:
         return JSONResponse(
             status_code=500,
-            content={"error": "Could not find JSON array from AI.", "raw": raw_text}
+            content={"error": f"JSON parsing error: {str(e)}", "raw": raw_text[:500]}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error generating questions: {str(e)}"}
         )
     
 app.mount("/", 

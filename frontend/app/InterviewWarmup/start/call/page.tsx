@@ -188,11 +188,13 @@ const CallPage: React.FC = () => {
       const data = await res.json();
       const questions = Array.isArray(data) ? data : data.questions;
 
-      setLLMResponse(
-        Array.isArray(questions)
-          ? questions.join("\n")
-          : data.error ?? "No response"
-      );
+      if (Array.isArray(questions)) {
+        // Store questions in localStorage for live demo
+        localStorage.setItem("interviewQuestions", JSON.stringify(questions));
+        setLLMResponse(questions.join("\n"));
+      } else {
+        setLLMResponse(data.error ?? "No response");
+      }
 
       setLLMCalled(true);
     } catch (error) {
@@ -264,7 +266,7 @@ const CallPage: React.FC = () => {
                   d="M10 19l-7-7m0 0l7-7m-7 7h18"
                 />
               </svg>
-              Back to home page
+              Back to Home
             </Link>
             {/* <p className="text-base text-gray-600 pl-4 mb-4">
               Preparing for:{" "}
@@ -278,22 +280,17 @@ const CallPage: React.FC = () => {
         <div className="navbar-center">
           {!llmCalled ? (
             <div className="text-center py-2">
-              <span className="loading loading-spinner loading-md text-primary"></span>
-              <p className="text-xl text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 mt-4">
-                ✨ Generating insights...
+              <span className="loading loading-spinner loading-md text-purple-600"></span>
+              <p className="text-lg font-medium text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 mt-2">
+                Generating questions...
               </p>
             </div>
           ) : (
             <Link
-              href="/results"
-              className="btn btn-lg rounded-4xl"
-              style={{
-                backgroundColor: "#2563eb",
-                color: "white",
-                borderColor: "#2563eb",
-              }}
+              href="/InterviewWarmup/start/call/livedemo"
+              className="btn btn-lg rounded-full border-0 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              style={{background: 'linear-gradient(135deg, #9333ea 0%, #6366f1 100%)'}}
             >
-              Next to Recommendations
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -304,20 +301,27 @@ const CallPage: React.FC = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                 />
               </svg>
+              Live Demo
             </Link>
           )}
         </div>
 
         <div className="navbar-end">
           <Link
-            href="/InterviewWarmup/start/call/livedemo"
-            className="btn btn-outline btn-lg rounded-full hover:bg-red-600 hover:text-white hover:border-red-600"
+            href="/results"
+            className="btn btn-lg rounded-full"
+            style={{
+              backgroundColor: "#2563eb",
+              color: "white",
+              borderColor: "#2563eb",
+            }}
           >
+            Next to Recommendations
             <svg
-              className="w-4 h-4"
+              className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -326,10 +330,9 @@ const CallPage: React.FC = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                d="M14 5l7 7m0 0l-7 7m7-7H3"
               />
             </svg>
-            Live Demo
           </Link>
         </div>
       </div>
@@ -629,13 +632,12 @@ const CallPage: React.FC = () => {
                       {hasFeedback && (
                         <div className="mt-4 bg-white rounded-lg p-4 border-l-4 border-blue-500">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-2xl">🎯</span>
+                            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             <h4 className="font-semibold text-gray-800">
                               AI Evaluation
                             </h4>
-                            <span className="ml-auto badge badge-lg bg-blue-500 text-white">
-                              Score: {feedback[key].score}/10
-                            </span>
                           </div>
                           <p className="text-sm text-gray-700 leading-relaxed">
                             {feedback[key].advice}

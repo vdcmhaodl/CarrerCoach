@@ -52,12 +52,15 @@ export default function Start() {
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <Link href="/" className="btn btn-ghost mb-4">
-            ← Back to Home
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Home
           </Link>
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 mb-2">
             Interview Warmup
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-lg">
             Practice interview questions based on your profile
           </p>
         </div>
@@ -65,7 +68,7 @@ export default function Start() {
         <div className="bg-white p-8 rounded-2xl shadow-lg">
           {analysis ? (
             <div className="space-y-6">
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+              <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
                 <div className="badge badge-primary badge-lg mb-3">
                   Your Profile
                 </div>
@@ -98,16 +101,23 @@ export default function Start() {
 
               {isGeneratingQuestions ? (
                 <div className="text-center py-8">
-                  <span className="loading loading-spinner loading-lg text-primary"></span>
-                  <p className="text-lg text-gray-600 mt-4">
+                  <div className="relative inline-flex">
+                    <span className="loading loading-spinner loading-lg text-purple-600"></span>
+                  </div>
+                  <p className="text-lg font-medium text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 mt-4">
                     Generating interview questions...
                   </p>
                 </div>
               ) : (
                 <button
                   onClick={handleStart}
-                  className="btn btn-lg btn-block rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-linear-to-r from-purple-600 to-indigo-600 border-0 text-white font-semibold"
+                  className="btn btn-lg btn-block rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border-0 text-white font-semibold text-lg"
+                  style={{background: 'linear-gradient(135deg, #9333ea 0%, #6366f1 100%)'}}
                 >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                   Start Interview Practice
                 </button>
               )}

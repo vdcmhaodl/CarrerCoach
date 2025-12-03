@@ -56,7 +56,7 @@ export default function HomePage() {
           your skills
         </p>
         <a href="/CareerCoach/start" className="mt-8">
-          <button className="btn btn-primary btn-lg px-20 py-6 rounded-full text-lg shadow-lg hover:shadow-xl transition-all">
+          <button className="btn btn-lg px-20 py-6 rounded-full text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all text-white border-none bg-gradient-to-r from-indigo-500 from-10% via-sky-500 via-30% to-emerald-500 to-90%">
             Start Your Journey
           </button>
         </a>
