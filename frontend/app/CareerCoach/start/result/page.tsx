@@ -27,7 +27,7 @@ export default function ResultPage() {
   useEffect(() => {
     const data = localStorage.getItem("cvAnalysis");
     if (data) {
-      setAnalysis(JSON.parse(data));
+      Promise.resolve().then(() => setAnalysis(JSON.parse(data)));
     }
   }, []);
 
@@ -36,7 +36,7 @@ export default function ResultPage() {
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-r from-indigo-500 from-10% via-sky-500 via-30% to-emerald-500 to-90% ">
-            Phân tích nghề nghiệp
+            Job Analyzing
           </h1>
           <p className="text-gray-600">
             Dựa trên CV của bạn, đây là những gì chúng tôi tìm thấy

@@ -17,7 +17,7 @@ export default function Start() {
   useEffect(() => {
     const data = localStorage.getItem("cvAnalysis");
     if (data) {
-      setAnalysis(JSON.parse(data));
+      Promise.resolve().then(() => setAnalysis(JSON.parse(data)));
     }
   }, []);
 

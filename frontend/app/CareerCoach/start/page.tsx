@@ -12,6 +12,7 @@ export default function Start() {
   const [extractedTasks, setExtractedTasks] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [manualRole, setManualRole] = useState("");
   const [manualCompany, setManualCompany] = useState("");
