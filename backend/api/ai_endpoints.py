@@ -15,28 +15,27 @@ async def get_gemini_evaluation(user_answer: str):
     Contains the logic to call Gemini.
     Receives text (typed or from STT) and returns JSON.
     """
-    prompt_template = f"""You are an expert interview coach named CareerCoach.
-Analyze the user's input and return ONLY a valid JSON object (no markdown, no extra text).
+    prompt_template = f"""Bạn là một huấn luyện viên phỏng vấn chuyên gia có tên CareerCoach. Hãy phân tích đầu vào của người dùng và chỉ trả về một đối tượng JSON hợp lệ (không có markdown, không có văn bản bổ sung).
 
-If the input is clearly an interview answer:
-Return this exact format:
+Nếu đầu vào rõ ràng là một câu trả lời phỏng vấn:
+Trả về định dạng chính xác này:
 {{
   "type": "evaluation",
-  "feedback": "Detailed feedback on strengths and weaknesses, with specific suggestions for improvement.",
-  "suggested_answer": "A better example answer to this question."
+  "feedback": "Phân hồi chi tiết về điểm mạnh và yếu, với những gợi ý cụ thể để cải thiện. Hãy trả lời bằng tiếng Việt.",
+  "suggested_answer": "Một câu trả lời ví dụ tốt hơn cho câu hỏi này dựa trên câu trả lời của người dùng. Hãy trả lời bằng tiếng Việt. Phải cung cấp câu trả lời gợi ý cho mọi câu hỏi, không bao giờ để trống."
 }}
 
-Otherwise:
-Return this format:
+Ngoài ra:
+Trả về định dạng này:
 {{
   "type": "general_answer",
-  "response": "Your response to the user's input."
+  "response": "Phản hồi của bạn cho đầu vào của người dùng. Hãy trả lời bằng tiếng Việt."
 }}
 
-User input:
+Đầu vào người dùng:
 {user_answer}
 
-Respond with ONLY the JSON object, no other text."""
+CHỈ trả về đối tượng JSON, không có văn bản khác. Luôn bao gồm trường "suggested_answer" khi type là "evaluation"."""
     
     try:
         response = await GEMINI_MODEL.generate_content_async(prompt_template)
@@ -75,8 +74,8 @@ Respond with ONLY the JSON object, no other text."""
         return JSONResponse(
             content={
                 "type": "evaluation",
-                "feedback": "Your answer shows good effort. Keep practicing and try to be more specific with examples.",
-                "suggested_answer": "Provide a more structured answer with specific examples from your experience."
+                "feedback": "Câu trả lời của bạn cho thấy nỗ lực tốt. Hãy tiếp tục luyện tập và cố gắng trở nên cụ thể hơn với các ví dụ.",
+                "suggested_answer": "Cung cấp một câu trả lời có cấu trúc hơn với các ví dụ cụ thể từ kinh nghiệm của bạn."
             }
         )
     except Exception as e:
@@ -84,8 +83,8 @@ Respond with ONLY the JSON object, no other text."""
         return JSONResponse(
             content={
                 "type": "evaluation",
-                "feedback": "I'm processing your response. Please try again in a moment.",
-                "suggested_answer": "Consider adding more specific details to your answer."
+                "feedback": "Tôi đang xử lý phản hồi của bạn. Vui lòng thử lại sau một lúc.",
+                "suggested_answer": "Hãy cân nhắc thêm các chi tiết cụ thể hơn vào câu trả lời của bạn."
             }
         )
 

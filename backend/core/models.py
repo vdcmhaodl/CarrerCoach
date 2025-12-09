@@ -26,3 +26,4 @@ class QuestionGenerationRequest(BaseModel):
 
 class TextToSpeechRequest(BaseModel):
     text: str
+    language: str = "en-US"

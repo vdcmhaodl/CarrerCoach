@@ -111,7 +111,7 @@ export default function ResultsPage() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent mb-2">
-            Recommendation
+            Đề xuất
           </h1>
           <p className="text-gray-600">
             Tạo CV mẫu chuyên nghiệp và khám phá các cơ hội việc làm phù hợp
@@ -416,7 +416,7 @@ export default function ResultsPage() {
             href="/CareerCoach/start/result"
             className="btn btn-ghost btn-lg rounded-full"
           >
-            ← Quay lại phân tích
+            ← Quay lại Phân tích
           </Link>
           <Link href="/" className="btn btn-primary btn-lg rounded-full">
             Về trang chủ

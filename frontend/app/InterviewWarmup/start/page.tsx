@@ -98,7 +98,7 @@ export default function Start() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tùy chỉnh trường (tùy chọn):
+                  Tùy chọn thêm
                 </label>
                 <input
                   type="text"

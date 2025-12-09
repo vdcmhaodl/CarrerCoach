@@ -1,6 +1,6 @@
 # api/media_endpoints.py
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from google.cloud import speech, vision, texttospeech
@@ -72,9 +72,10 @@ def ocr_cv_file_sync(content: bytes, mime_type: str) -> str:
         print(f"OCR Error: {e}")
         return f"(Error processing OCR: {e})"
 
-async def transcribe_audio(audio_content: bytes) -> str:
+async def transcribe_audio(audio_content: bytes, language_code: str = "en-US") -> str:
     """
     Uses Google Cloud Speech-to-Text to convert audio bytes to text using the service account key.
+    Supports English (en-US) and Vietnamese (vi-VN).
     """
     try:
         client = speech.SpeechAsyncClient.from_service_account_file(
@@ -84,16 +85,28 @@ async def transcribe_audio(audio_content: bytes) -> str:
         audio = speech.RecognitionAudio(content=audio_content)
  
         print(f"Audio content size: {len(audio_content)} bytes")
+        print(f"Language code: {language_code}")
  
+        # Map Vietnamese language code to proper Google Cloud code
+        if language_code.lower() in ["vi", "vi-vn", "vietnamese"]:
+            language_code = "vi-VN"
+        elif language_code.lower() in ["en", "en-us", "english"]:
+            language_code = "en-US"
+ 
+        # Choose model based on language
+        # Vietnamese benefits from the enhanced model
+        model_name = "latest_long" if language_code == "vi-VN" else "default"
+        
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
-            language_code="en-US",
+            sample_rate_hertz=48000,
+            language_code=language_code,
             enable_automatic_punctuation=True,
             use_enhanced=True,
-            model="default",
+            model=model_name,
         )
  
-        print("Sending audio to Google Speech-to-Text...")
+        print(f"Sending audio to Google Speech-to-Text with model: {model_name}...")
  
         response = await client.recognize(config=config, audio=audio)
  
@@ -132,10 +145,11 @@ async def handle_image_request(file: UploadFile = File(...)):
     return JSONResponse(content={"cv_text": cv_text})
 
 @router.post("/process-voice")
-async def handle_voice_request(audio: UploadFile = File(...)):
+async def handle_voice_request(audio: UploadFile = File(...), language: str = Form("en-US")):
     print(f"===== VOICE PROCESSING START =====")
     print(f"Received audio file: {audio.filename}")
     print(f"Content type: {audio.content_type}")
+    print(f"Language: {language}")
  
     try:
         audio_content = await audio.read()
@@ -147,7 +161,7 @@ async def handle_voice_request(audio: UploadFile = File(...)):
                 content={"error": "Audio file too short", "transcription": ""}
             )
  
-        transcribed_text = await transcribe_audio(audio_content)
+        transcribed_text = await transcribe_audio(audio_content, language)
  
         if "(Error" in transcribed_text or "(Server Error" in transcribed_text:
             print(f"Transcription error: {transcribed_text}")
@@ -171,6 +185,7 @@ async def handle_voice_request(audio: UploadFile = File(...)):
 async def text_to_speech(request: TextToSpeechRequest):
     """
     Convert text to natural speech using Google Cloud Text-to-Speech.
+    Supports English (en-US) and Vietnamese (vi-VN).
     Returns base64 encoded audio.
     """
     try:
@@ -180,16 +195,29 @@ async def text_to_speech(request: TextToSpeechRequest):
  
         synthesis_input = texttospeech.SynthesisInput(text=request.text)
  
+        # Get language from request, default to en-US
+        language = request.language.lower() if request.language else "en-US"
+ 
+        # Map Vietnamese language code to proper Google Cloud code
+        if language in ["vi", "vi-vn", "vietnamese"]:
+            language_code = "vi-VN"
+            # Use a Vietnamese voice (female neural voice)
+            voice_name = "vi-VN-Neural2-A"
+        else:
+            language_code = "en-US"
+            voice_name = "en-US-Neural2-F"
+ 
         voice = texttospeech.VoiceSelectionParams(
-            language_code="en-US",
-            name="en-US-Neural2-F",
+            language_code=language_code,
+            name=voice_name,
             ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
         )
  
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3,
-            speaking_rate=0.95,
-            pitch=0.0
+            speaking_rate=0.85,
+            pitch=-2.0,
+            volume_gain_db=0.0
         )
  
         response = await client.synthesize_speech(

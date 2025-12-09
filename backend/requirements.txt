@@ -3,3 +3,4 @@ uvicorn[standard]
 google-generativeai
 google-cloud-speech
 google-cloud-vision
+google-cloud-texttospeech

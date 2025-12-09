@@ -3,6 +3,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { parseMarkdown, renderMarkdown } from "@/app/utils/markdownParser";
 
 interface InterviewContext {
   field: string;
@@ -25,9 +26,13 @@ const CallPage: React.FC = () => {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
   );
+  const [language, setLanguage] = useState<string>("en");
 
   useEffect(() => {
     const data = localStorage.getItem("interviewContext");
+    const storedLanguage = localStorage.getItem("language") || "en";
+    setLanguage(storedLanguage);
+    
     if (data) {
       const parsedContext = JSON.parse(data);
       setContext(parsedContext);
@@ -50,6 +55,8 @@ const CallPage: React.FC = () => {
   }>({});
   // Theo dõi câu hỏi nào đang được đánh giá
   const [evaluating, setEvaluating] = useState<{ [key: string]: boolean }>({});
+  // Theo dõi câu hỏi nào có feedback bị thu gọn
+  const [collapsedFeedback, setCollapsedFeedback] = useState<{ [key: string]: boolean }>({});
 
   const handleAnswerChange = (
     category: string,
@@ -76,8 +83,7 @@ const CallPage: React.FC = () => {
     setEvaluating((prev) => ({ ...prev, [key]: true }));
 
     try {
-      // Prompt này gửi sang backend, backend đã được việt hóa để hiểu context này
-      const questionContext = `Interview Question: ${question}\n\nMy Answer: ${answer}\n\nPlease evaluate my answer to this interview question.`;
+      const questionContext = `Câu hỏi phỏng vấn: ${question}\n\nCâu trả lời của tôi: ${answer}\n\nVui lòng đánh giá câu trả lời của tôi cho câu hỏi phỏng vấn này.`;
 
       console.log(`Sending feedback request for ${key}...`);
 
@@ -94,7 +100,6 @@ const CallPage: React.FC = () => {
       const data = await res.json();
       console.log(`Feedback response for ${key}:`, data);
 
-      // Trích xuất phản hồi từ response
       if (data.type === "evaluation" && data.feedback) {
         console.log(`Setting evaluation feedback for ${key}`);
         setFeedback((prev) => {
@@ -188,6 +193,8 @@ const CallPage: React.FC = () => {
 
         const formData = new FormData();
         formData.append("audio", audioBlob, "audio.webm");
+        // Add language parameter
+        formData.append("language", language === "vi" ? "vi-VN" : "en-US");
 
         try {
           const res = await fetch("http://localhost:8000/api/process-voice", {
@@ -363,7 +370,7 @@ const CallPage: React.FC = () => {
                   d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
                 />
               </svg>
-              Demo Trực tiếp
+              Live Demo
             </Link>
           )}
         </div>
@@ -402,13 +409,13 @@ const CallPage: React.FC = () => {
             type="radio"
             name="my_tabs_6"
             className="tab h-12 text-base font-medium text-gray-500 aria-checked:text-indigo-600 aria-checked:border-indigo-600"
-            aria-label="Bối cảnh"
+            aria-label="Nền tảng"
             defaultChecked
           />
           <div className="tab-content p-6 w-full bg-transparent border-none">
             {backgroundQuestions.length === 0 ? (
               <p className="text-sm text-gray-500">
-                Chưa có câu hỏi bối cảnh nào
+                Chưa có câu hỏi nền tảng nào
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-6">
@@ -429,7 +436,7 @@ const CallPage: React.FC = () => {
                         </span>
                         <div className="flex-1">
                           <span className="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full mb-2">
-                            Bối cảnh
+                            Nền tảng
                           </span>
                           <p className="text-base text-gray-800 font-medium leading-relaxed">
                             {q}
@@ -516,36 +523,68 @@ const CallPage: React.FC = () => {
 
                       {hasFeedback && (
                         <div className="mt-4 bg-white rounded-lg p-4 border-l-4 border-red-500">
-                          <div className="flex items-center gap-2 mb-3">
-                            <svg
-                              className="w-6 h-6 text-red-500"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <h4 className="font-semibold text-gray-800">
-                              Đánh giá từ AI
-                            </h4>
-                          </div>
-                          <p className="text-sm text-gray-700 leading-relaxed mb-3">
-                            {feedback[key].advice}
-                          </p>
-                          {feedback[key].suggested_answer && (
-                            <div className="mt-3 pt-3 border-t border-gray-200">
-                              <p className="text-xs font-semibold text-gray-600 mb-2">
-                                Câu trả lời gợi ý:
-                              </p>
-                              <p className="text-sm text-gray-600 leading-relaxed italic">
-                                {feedback[key].suggested_answer}
-                              </p>
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-6 h-6 text-red-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <h4 className="font-semibold text-gray-800">
+                                Đánh giá từ AI
+                              </h4>
                             </div>
+                            <button
+                              onClick={() => {
+                                setCollapsedFeedback((prev) => ({
+                                  ...prev,
+                                  [key]: !prev[key],
+                                }));
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              title={collapsedFeedback[key] ? "Mở rộng" : "Thu gọn"}
+                            >
+                              <svg
+                                className={`w-5 h-5 text-gray-500 transition-transform ${
+                                  collapsedFeedback[key] ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                          {!collapsedFeedback[key] && (
+                            <>
+                              <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                                {renderMarkdown(parseMarkdown(feedback[key].advice))}
+                              </p>
+                              {feedback[key].suggested_answer && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <p className="text-xs font-semibold text-gray-600 mb-2">
+                                    Câu trả lời gợi ý:
+                                  </p>
+                                  <p className="text-sm text-gray-600 leading-relaxed italic">
+                                    {renderMarkdown(parseMarkdown(feedback[key].suggested_answer))}
+                                  </p>
+                                </div>
+                              )}
+                            </>
                           )}
                           <button
                             className="mt-3 text-sm text-red-600 hover:text-red-700 font-medium flex items-center gap-1"
@@ -555,6 +594,11 @@ const CallPage: React.FC = () => {
                                 const newFeedback = { ...prev };
                                 delete newFeedback[key];
                                 return newFeedback;
+                              });
+                              setCollapsedFeedback((prev) => {
+                                const newCollapsed = { ...prev };
+                                delete newCollapsed[key];
+                                return newCollapsed;
                               });
                             }}
                           >
@@ -699,27 +743,69 @@ const CallPage: React.FC = () => {
 
                       {hasFeedback && (
                         <div className="mt-4 bg-white rounded-lg p-4 border-l-4 border-blue-500">
-                          <div className="flex items-center gap-2 mb-2">
-                            <svg
-                              className="w-6 h-6 text-blue-500"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-6 h-6 text-blue-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <h4 className="font-semibold text-gray-800">
+                                Đánh giá từ AI
+                              </h4>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setCollapsedFeedback((prev) => ({
+                                  ...prev,
+                                  [key]: !prev[key],
+                                }));
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              title={collapsedFeedback[key] ? "Mở rộng" : "Thu gọn"}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <h4 className="font-semibold text-gray-800">
-                              Đánh giá từ AI
-                            </h4>
+                              <svg
+                                className={`w-5 h-5 text-gray-500 transition-transform ${
+                                  collapsedFeedback[key] ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                />
+                              </svg>
+                            </button>
                           </div>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            {feedback[key].advice}
-                          </p>
+                          {!collapsedFeedback[key] && (
+                            <>
+                              <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                                {renderMarkdown(parseMarkdown(feedback[key].advice))}
+                              </p>
+                              {feedback[key].suggested_answer && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <p className="text-xs font-semibold text-gray-600 mb-2">
+                                    Câu trả lời gợi ý:
+                                  </p>
+                                  <p className="text-sm text-gray-600 leading-relaxed italic">
+                                    {renderMarkdown(parseMarkdown(feedback[key].suggested_answer))}
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          )}
                           <button
                             className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                             onClick={() => {
@@ -728,6 +814,11 @@ const CallPage: React.FC = () => {
                                 const newFeedback = { ...prev };
                                 delete newFeedback[key];
                                 return newFeedback;
+                              });
+                              setCollapsedFeedback((prev) => {
+                                const newCollapsed = { ...prev };
+                                delete newCollapsed[key];
+                                return newCollapsed;
                               });
                             }}
                           >
@@ -872,27 +963,69 @@ const CallPage: React.FC = () => {
 
                       {hasFeedback && (
                         <div className="mt-4 bg-white rounded-lg p-4 border-l-4 border-green-500">
-                          <div className="flex items-center gap-2 mb-2">
-                            <svg
-                              className="w-6 h-6 text-green-500"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-6 h-6 text-green-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <h4 className="font-semibold text-gray-800">
+                                Đánh giá từ AI
+                              </h4>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setCollapsedFeedback((prev) => ({
+                                  ...prev,
+                                  [key]: !prev[key],
+                                }));
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded transition-colors"
+                              title={collapsedFeedback[key] ? "Mở rộng" : "Thu gọn"}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <h4 className="font-semibold text-gray-800">
-                              Đánh giá từ AI
-                            </h4>
+                              <svg
+                                className={`w-5 h-5 text-gray-500 transition-transform ${
+                                  collapsedFeedback[key] ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                />
+                              </svg>
+                            </button>
                           </div>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            {feedback[key].advice}
-                          </p>
+                          {!collapsedFeedback[key] && (
+                            <>
+                              <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                                {renderMarkdown(parseMarkdown(feedback[key].advice))}
+                              </p>
+                              {feedback[key].suggested_answer && (
+                                <div className="mt-3 pt-3 border-t border-gray-200">
+                                  <p className="text-xs font-semibold text-gray-600 mb-2">
+                                    Câu trả lời gợi ý:
+                                  </p>
+                                  <p className="text-sm text-gray-600 leading-relaxed italic">
+                                    {renderMarkdown(parseMarkdown(feedback[key].suggested_answer))}
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          )}
                           <button
                             className="mt-3 text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
                             onClick={() => {
@@ -901,6 +1034,11 @@ const CallPage: React.FC = () => {
                                 const newFeedback = { ...prev };
                                 delete newFeedback[key];
                                 return newFeedback;
+                              });
+                              setCollapsedFeedback((prev) => {
+                                const newCollapsed = { ...prev };
+                                delete newCollapsed[key];
+                                return newCollapsed;
                               });
                             }}
                           >
