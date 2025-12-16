@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/app/context/LanguageContext";
 import { useUserProfile, JobMatch } from "@/app/context/UserProfileContext";
@@ -14,16 +14,7 @@ export default function JobMatching() {
   const [selectedJob, setSelectedJob] = useState<JobMatch | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Fetch job matches from backend API
-    if (profile && profile.selectedSkills.length > 0) {
-      fetchJobMatches();
-    } else {
-      setLoading(false);
-    }
-  }, [profile]);
-
-  const fetchJobMatches = async () => {
+  const fetchJobMatches = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -57,7 +48,16 @@ export default function JobMatching() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addMatchedJobs, profile]);
+
+  useEffect(() => {
+    // Fetch job matches from backend API
+    if (profile && profile.selectedSkills.length > 0) {
+      fetchJobMatches();
+    } else {
+      setLoading(false);
+    }
+  }, [profile, fetchJobMatches]);
 
   const handleApply = (jobUrl: string) => {
     applyToJob(jobUrl);
@@ -74,7 +74,7 @@ export default function JobMatching() {
             typeof item === "string" ? item : item._value || item
           );
       }
-    } catch (e) {
+    } catch {
       // If not JSON, return as is
     }
     return [desc.substring(0, 200) + "..."];

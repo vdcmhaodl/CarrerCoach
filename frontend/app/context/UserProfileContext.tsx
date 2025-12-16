@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 export interface CVAnalysis {
   extractedSkills: string[];
@@ -39,12 +45,13 @@ export interface UserProfile {
   // Career Dreamer Data
   role: string;
   organization?: string;
+  experienceYears?: number;
   selectedSkills: string[];
   selectedTasks: string[];
-  
+
   // CV Analysis Results
   cvAnalysis?: CVAnalysis;
-  
+
   // Interview Warmup Progress
   interviewSessions: InterviewSession[];
   performanceMetrics: {
@@ -53,11 +60,11 @@ export interface UserProfile {
     improvementAreas: string[];
     sessionsCompleted: number;
   };
-  
+
   // Job Matching
   matchedJobs: JobMatch[];
   appliedJobs: string[]; // Job URLs
-  
+
   // Timestamps
   profileCreatedAt: string;
   lastUpdatedAt: string;
@@ -73,13 +80,16 @@ interface UserProfileContextType {
   isProfileComplete: boolean;
 }
 
-const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
+const UserProfileContext = createContext<UserProfileContextType | undefined>(
+  undefined
+);
 
 const STORAGE_KEY = "careercoach_user_profile";
 
 const createEmptyProfile = (): UserProfile => ({
   role: "",
   organization: "",
+  experienceYears: 0,
   selectedSkills: [],
   selectedTasks: [],
   interviewSessions: [],
@@ -141,10 +151,14 @@ export const UserProfileProvider = ({ children }: { children: ReactNode }) => {
   const addInterviewSession = (session: InterviewSession) => {
     setProfile((prev) => {
       if (!prev) return createEmptyProfile();
-      
+
       const newSessions = [...prev.interviewSessions, session];
-      const totalScore = newSessions.reduce((sum, s) => sum + (s.averageScore || 0), 0);
-      const avgScore = newSessions.length > 0 ? totalScore / newSessions.length : 0;
+      const totalScore = newSessions.reduce(
+        (sum, s) => sum + (s.averageScore || 0),
+        0
+      );
+      const avgScore =
+        newSessions.length > 0 ? totalScore / newSessions.length : 0;
 
       return {
         ...prev,
@@ -162,11 +176,11 @@ export const UserProfileProvider = ({ children }: { children: ReactNode }) => {
   const addMatchedJobs = (jobs: JobMatch[]) => {
     setProfile((prev) => {
       if (!prev) return createEmptyProfile();
-      
+
       // Merge with existing jobs, avoid duplicates
-      const existingUrls = new Set(prev.matchedJobs.map(j => j.job_url));
-      const newJobs = jobs.filter(j => !existingUrls.has(j.job_url));
-      
+      const existingUrls = new Set(prev.matchedJobs.map((j) => j.job_url));
+      const newJobs = jobs.filter((j) => !existingUrls.has(j.job_url));
+
       return {
         ...prev,
         matchedJobs: [...prev.matchedJobs, ...newJobs],
@@ -178,7 +192,7 @@ export const UserProfileProvider = ({ children }: { children: ReactNode }) => {
   const applyToJob = (jobUrl: string) => {
     setProfile((prev) => {
       if (!prev) return createEmptyProfile();
-      
+
       if (!prev.appliedJobs.includes(jobUrl)) {
         return {
           ...prev,
@@ -197,8 +211,7 @@ export const UserProfileProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const isProfileComplete = !!(
-    profile?.role &&
-    profile.selectedSkills.length >= 3
+    profile?.role && profile.selectedSkills.length >= 3
   );
 
   return (
