@@ -5,9 +5,10 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from google.cloud import speech, vision, texttospeech
 import base64
+import os
 # Import từ file config/models mới
 from core.models import TextToSpeechRequest
-from core.config import GOOGLE_SPEECH_KEY_FILE, VISION_KEY 
+from core.config import GOOGLE_SPEECH_KEY_FILE, VISION_KEY, get_credential_path
 
 router = APIRouter()
 
@@ -19,7 +20,9 @@ def ocr_cv_file_sync(content: bytes, mime_type: str) -> str:
     by selecting the correct API method based on MIME_TYPE.
     """
     try:
-        client = vision.ImageAnnotatorClient.from_service_account_file(VISION_KEY)
+        ocr_key_path = get_credential_path("ocr_key.json")
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ocr_key_path
+        client = vision.ImageAnnotatorClient()
  
         print(f"Processing file ({mime_type}) with Google Vision (Sync)...")
  
@@ -66,7 +69,7 @@ def ocr_cv_file_sync(content: bytes, mime_type: str) -> str:
             return f"(OCR Error: Unsupported MIME type '{mime_type}'. Supported: PDF, PNG, JPG, GIF, TIFF, DOCX.)"
  
     except FileNotFoundError:
-        print(f"CRITICAL ERROR: Key file '{VISION_KEY}' not found.")
+        print("CRITICAL ERROR: OCR key file not found.")
         return f"(Server Error: OCR key file not found.)"
     except Exception as e:
         print(f"OCR Error: {e}")
@@ -78,9 +81,9 @@ async def transcribe_audio(audio_content: bytes, language_code: str = "en-US") -
     Supports English (en-US) and Vietnamese (vi-VN).
     """
     try:
-        client = speech.SpeechAsyncClient.from_service_account_file(
-            GOOGLE_SPEECH_KEY_FILE
-        )
+        speech_key_path = get_credential_path("speech_key.json")
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = speech_key_path
+        client = speech.SpeechAsyncClient()
  
         audio = speech.RecognitionAudio(content=audio_content)
  
@@ -128,7 +131,7 @@ async def transcribe_audio(audio_content: bytes, language_code: str = "en-US") -
         return transcript.strip()
  
     except FileNotFoundError:
-        print(f"CRITICAL ERROR: Key file '{GOOGLE_SPEECH_KEY_FILE}' not found.")
+        print("CRITICAL ERROR: Speech key file not found.")
         return "(Server Error: STT key file not found)"
     except Exception as e:
         print(f"Speech-to-Text Error: {type(e).__name__}: {e}")
@@ -189,9 +192,9 @@ async def text_to_speech(request: TextToSpeechRequest):
     Returns base64 encoded audio.
     """
     try:
-        client = texttospeech.TextToSpeechAsyncClient.from_service_account_file(
-            GOOGLE_SPEECH_KEY_FILE
-        )
+        speech_key_path = get_credential_path("speech_key.json")
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = speech_key_path
+        client = texttospeech.TextToSpeechAsyncClient()
  
         synthesis_input = texttospeech.SynthesisInput(text=request.text)
  

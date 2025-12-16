@@ -14,10 +14,66 @@ import google.generativeai as genai
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 KEY_DIR = BACKEND_DIR / "key"
 
+def get_credential_path(filename: str) -> str:
+    """Resolve a secret file path.
+
+    Priority:
+    1) Render secret mount: /etc/secrets/<filename>
+    2) Local dev (repo): <repo>/backend/key/<filename>
+    3) Local dev (cwd): <cwd>/backend/key/<filename> or <cwd>/key/<filename>
+    """
+
+    render_path = Path("/etc/secrets") / filename
+    if render_path.is_file():
+        return str(render_path)
+
+    repo_path = KEY_DIR / filename
+    if repo_path.is_file():
+        return str(repo_path)
+
+    cwd_backend_path = Path.cwd() / "backend" / "key" / filename
+    if cwd_backend_path.is_file():
+        return str(cwd_backend_path)
+
+    cwd_key_path = Path.cwd() / "key" / filename
+    if cwd_key_path.is_file():
+        return str(cwd_key_path)
+
+    raise FileNotFoundError(
+        f"Secret file '{filename}' not found in /etc/secrets or local key folders."
+    )
+
+
+def _resolve_optional_key_file(env_value: str | None, filename: str) -> str:
+    """Resolve a key file path without crashing at import time."""
+
+    if env_value:
+        try:
+            if Path(env_value).is_file():
+                return env_value
+        except OSError:
+            pass
+
+    try:
+        return get_credential_path(filename)
+    except FileNotFoundError:
+        # Keep old default behavior for local dev; endpoints can handle missing files.
+        return str(KEY_DIR / filename)
+
+
 # Key file locations (can be overridden by env vars)
-GOOGLE_SPEECH_KEY_FILE = os.getenv("GOOGLE_SPEECH_KEY_FILE", str(KEY_DIR / "speech_key.json"))
-VISION_KEY = os.getenv("VISION_KEY", str(KEY_DIR / "ocr_key.json"))
-CHATBOT_KEY_FILE = os.getenv("CHATBOT_KEY_FILE", str(KEY_DIR / "chatbot_key.json"))
+GOOGLE_SPEECH_KEY_FILE = _resolve_optional_key_file(
+    os.getenv("GOOGLE_SPEECH_KEY_FILE"),
+    "speech_key.json",
+)
+VISION_KEY = _resolve_optional_key_file(
+    os.getenv("VISION_KEY"),
+    "ocr_key.json",
+)
+CHATBOT_KEY_FILE = _resolve_optional_key_file(
+    os.getenv("CHATBOT_KEY_FILE"),
+    "chatbot_key.json",
+)
 
 def load_gemini_api_key(key_file: str) -> str:
     """Load Gemini API key from JSON file."""
