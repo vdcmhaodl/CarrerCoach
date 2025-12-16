@@ -6,23 +6,48 @@ from core.models import JobRecommendationRequest
 import json
 import os
 import re
+import requests
 
 router = APIRouter()
 
-# --- 1. LOAD DATA MỘT LẦN DUY NHẤT (GLOBAL) ---
-# Cách này giúp server không phải đọc ổ cứng liên tục
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "..", "job_data.json")
+def get_job_data() -> list:
+    """Load job data for local + Render deployment.
 
-JOB_DATABASE = []
-try:
-    if os.path.exists(DATA_PATH):
-        with open(DATA_PATH, 'r', encoding='utf-8') as f:
-            JOB_DATABASE = json.load(f)
-    else:
-        print(f"Không tìm thấy file data tại: {DATA_PATH}")
-except Exception as e:
-    print(f"Lỗi load data: {e}")
+    Priority:
+    1) Fetch from JSON_DATA_URL (npoint.io)
+    2) Fallback to local backend/job_data.json
+    3) Return [] if both fail
+    """
+
+    url = os.getenv("JSON_DATA_URL")
+    if url:
+        try:
+            resp = requests.get(url, timeout=20)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data if isinstance(data, list) else []
+            print(f"Warning: JSON_DATA_URL returned status {resp.status_code}")
+        except Exception as e:
+            print(f"Warning: failed to fetch JSON_DATA_URL: {e}")
+
+    try:
+        # util_endpoints.py is in backend/api/, so go up one level to backend/
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(base_dir, "..", "job_data.json")
+        if not os.path.exists(data_path):
+            print(f"Không tìm thấy file data tại: {data_path}")
+            return []
+
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except Exception as e:
+        print(f"Lỗi load data: {e}")
+        return []
+
+
+# --- Load once at startup (global cache) ---
+JOB_DATABASE = get_job_data()
 
 # Danh sách skill phổ biến để gợi ý thiếu
 COMMON_SKILLS = {
