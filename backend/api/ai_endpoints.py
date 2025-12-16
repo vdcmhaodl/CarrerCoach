@@ -40,6 +40,14 @@ Trả về định dạng này:
 
 CHỈ trả về đối tượng JSON, không có văn bản khác. Luôn bao gồm trường "suggested_answer" khi type là "evaluation"."""
     
+    if GEMINI_MODEL is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Gemini is not configured. Set env var GOOGLE_API_KEY (or GEMINI_API_KEY) on the server.",
+            },
+        )
+
     try:
         response = await GEMINI_MODEL.generate_content_async(prompt_template)
         raw_text = response.text.strip()
@@ -185,6 +193,14 @@ async def generate_cv(data: CVGenerationRequest):
     Return ONLY the Markdown content, no JSON, no code blocks.
     """
     
+    if GEMINI_MODEL is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Gemini is not configured. Set env var GOOGLE_API_KEY (or GEMINI_API_KEY) on the server.",
+            },
+        )
+
     try:
         response = await GEMINI_MODEL.generate_content_async(prompt_template)
         cv_markdown = response.text.strip()
@@ -230,6 +246,14 @@ async def generate_cv_docx(data: CVGenerationRequest):
     Return plain text content, no markdown syntax, no code blocks.
     """
     
+    if GEMINI_MODEL is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Gemini is not configured. Set env var GOOGLE_API_KEY (or GEMINI_API_KEY) on the server.",
+            },
+        )
+
     try:
         response = await GEMINI_MODEL.generate_content_async(prompt_template)
         cv_text = response.text.strip()
@@ -292,6 +316,14 @@ Mỗi câu hỏi PHẢI bắt đầu chính xác với một thẻ: [Background]
  
 Đặt câu hỏi cụ thể cho vai trò và kỹ năng. CHỈ trả về mảng JSON, không trả về bất kỳ dữ liệu nào khác."""
     
+    if GEMINI_MODEL is None:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Gemini is not configured. Set env var GOOGLE_API_KEY (or GEMINI_API_KEY) on the server.",
+            },
+        )
+
     try:
         response = await GEMINI_MODEL.generate_content_async(prompt_template)
         raw_text = response.text.strip()
